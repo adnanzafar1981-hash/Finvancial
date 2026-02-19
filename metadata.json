@@ -1,0 +1,5 @@
+{
+  "name": "Finvancial",
+  "description": "A comprehensive personal financial tracker for monitoring income, expenses, investments, and net worth growth with detailed analytics and cloud-like local persistence.",
+  "requestFramePermissions": []
+}
