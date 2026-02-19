@@ -1,44 +1,569 @@
-
 <!DOCTYPE html>
 <html lang="en">
-  <head>
+<head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Finvancial - Track Your Wealth</title>
+    
+    <!-- Dependencies -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
     <style>
-      body {
-        font-family: 'Inter', sans-serif;
-      }
-      /* Custom scrollbar */
-      ::-webkit-scrollbar {
-        width: 8px;
-        height: 8px;
-      }
-      ::-webkit-scrollbar-track {
-        background: #f1f5f9;
-      }
-      ::-webkit-scrollbar-thumb {
-        background: #cbd5e1;
-        border-radius: 4px;
-      }
-      ::-webkit-scrollbar-thumb:hover {
-        background: #94a3b8;
-      }
+        body { font-family: 'Inter', sans-serif; }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
     </style>
-  <script type="importmap">
-{
-  "imports": {
-    "react/": "https://esm.sh/react@^19.2.4/",
-    "react": "https://esm.sh/react@^19.2.4",
-    "lucide-react": "https://esm.sh/lucide-react@^0.564.0",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.4/"
-  }
-}
-</script>
+
+    <script type="importmap">
+    {
+      "imports": {
+        "react": "https://esm.sh/react@19.0.0",
+        "react-dom/client": "https://esm.sh/react-dom@19.0.0/client",
+        "lucide-react": "https://esm.sh/lucide-react@0.460.0"
+      }
+    }
+    </script>
 </head>
-  <body class="bg-slate-50 text-slate-900">
+<body class="bg-slate-50 text-slate-900">
     <div id="root"></div>
-  </body>
+
+    <script type="text/babel" data-type="module">
+        import React, { useState, useMemo, useRef, useEffect } from 'react';
+        import ReactDOM from 'react-dom/client';
+        import { 
+            TrendingUp, Wallet, Banknote, Save, BarChart3, Download, Upload, 
+            Calendar, Trash2, CheckCircle2, ArrowRightLeft, LineChart, 
+            ExternalLink, PiggyBank, Coins, Filter, Calculator, PieChart, 
+            ChevronRight, Plus, LayoutDashboard 
+        } from 'lucide-react';
+
+        // --- CONSTANTS ---
+        const ACCOUNTS = ['cash', 'bank1', 'bank2', 'bank3', 'pf'];
+        const INCOME_CATS = ['salary', 'bonus', 'other'];
+        const ASSETS = ['mutualFund', 'stock', 'commodities', 'pf'];
+        const EMPTY_INCOME_ENTRY = { cash: 0, bank1: 0, bank2: 0, bank3: 0, pf: 0 };
+        const EMPTY_INVESTMENT_ENTRY = { invested: 0, closing: 0 };
+
+        const createEmptyMonth = () => ({
+            income: {
+                salary: { ...EMPTY_INCOME_ENTRY },
+                bonus: { ...EMPTY_INCOME_ENTRY },
+                other: { ...EMPTY_INCOME_ENTRY }
+            },
+            closing: { ...EMPTY_INCOME_ENTRY },
+            investments: {
+                mutualFund: { ...EMPTY_INVESTMENT_ENTRY },
+                stock: { ...EMPTY_INVESTMENT_ENTRY },
+                commodities: { ...EMPTY_INVESTMENT_ENTRY },
+                pf: { ...EMPTY_INVESTMENT_ENTRY }
+            },
+            investmentOutflow: 0
+        });
+
+        const INITIAL_GLOBAL_OPENING = {
+            commodities: 358600, bank2: 20440, cash: 687195, pf: 0, 
+            bank3: 0, bank1: 27670, stock: 313000, assetPf: 1292256, mutualFund: 1017014
+        };
+
+        const SEED_DATA_CSV = `Month,Type,Category,Field,Value
+GLOBAL,Opening,Global,commodities,358600
+GLOBAL,Opening,Global,bank2,20440
+GLOBAL,Opening,Global,cash,687195
+GLOBAL,Opening,Global,pf,0
+GLOBAL,Opening,Global,bank3,0
+GLOBAL,Opening,Global,bank1,27670
+GLOBAL,Opening,Global,stock,313000
+GLOBAL,Opening,Global,assetPf,1292256
+GLOBAL,Opening,Global,mutualFund,1017014
+2025-08,Income,salary,cash,394000
+2025-08,Income,salary,bank1,363896
+2025-08,Income,salary,pf,60934
+2025-08,Income,other,cash,656667
+2025-08,Income,other,bank1,1289
+2025-08,Closing,Account,cash,166695
+2025-08,Closing,Account,bank1,282677
+2025-08,Closing,Account,bank2,26649
+2025-08,Outflow,InvestmentAndPF,Total,361399
+2025-08,Investment,mutualFund,invested,250465
+2025-08,Investment,mutualFund,closing,1297624
+2025-08,Investment,stock,invested,50000
+2025-08,Investment,stock,closing,385807
+2025-08,Investment,commodities,closing,364000
+2025-08,Investment,pf,invested,60934
+2025-08,Investment,pf,closing,1424033
+2025-09,Income,salary,cash,394000
+2025-09,Income,salary,bank1,363896
+2025-09,Income,salary,pf,60934
+2025-09,Income,other,bank1,4284
+2025-09,Closing,Account,cash,154195
+2025-09,Closing,Account,bank1,84779
+2025-09,Closing,Account,bank2,21522
+2025-09,Outflow,InvestmentAndPF,Total,110934
+2025-09,Investment,mutualFund,invested,20000
+2025-09,Investment,mutualFund,closing,1385560
+2025-09,Investment,stock,invested,30000
+2025-09,Investment,stock,closing,461242
+2025-09,Investment,commodities,closing,401500
+2025-09,Investment,pf,invested,60934
+2025-09,Investment,pf,closing,1554570
+2025-10,Income,salary,cash,394000
+2025-10,Income,salary,bank1,310436
+2025-10,Income,salary,pf,60934
+2025-10,Income,other,bank1,3614
+2025-10,Closing,Account,cash,88500
+2025-10,Closing,Account,bank1,103193
+2025-10,Closing,Account,bank2,11852
+2025-10,Outflow,InvestmentAndPF,Total,210934
+2025-10,Investment,mutualFund,invested,50000
+2025-10,Investment,mutualFund,closing,1404597
+2025-10,Investment,stock,invested,100000
+2025-10,Investment,stock,closing,555328
+2025-10,Investment,commodities,closing,425000
+2025-10,Investment,pf,invested,60934
+2025-10,Investment,pf,closing,1687880
+2025-11,Income,salary,cash,594000
+2025-11,Income,salary,bank1,337166
+2025-11,Income,salary,pf,60934
+2025-11,Income,other,bank1,4526
+2025-11,Closing,Account,cash,33000
+2025-11,Closing,Account,bank1,103409
+2025-11,Closing,Account,bank2,10511
+2025-11,Outflow,InvestmentAndPF,Total,160934
+2025-11,Investment,mutualFund,closing,1431464
+2025-11,Investment,stock,invested,100000
+2025-11,Investment,stock,closing,674127
+2025-11,Investment,commodities,closing,449000
+2025-11,Investment,pf,invested,72041
+2025-11,Investment,pf,closing,1847285
+2025-12,Income,salary,cash,394000
+2025-12,Income,salary,bank1,337116
+2025-12,Income,salary,bank3,188893
+2025-12,Income,salary,pf,72041
+2025-12,Closing,Account,cash,73500
+2025-12,Closing,Account,bank1,67627
+2025-12,Closing,Account,bank2,18761
+2025-12,Closing,Account,bank3,136981
+2025-12,Outflow,InvestmentAndPF,Total,231051
+2025-12,Investment,mutualFund,invested,100000
+2025-12,Investment,mutualFund,closing,1561003
+2025-12,Investment,stock,invested,59010
+2025-12,Investment,stock,closing,757054
+2025-12,Investment,commodities,closing,463000
+2025-12,Investment,pf,invested,72041
+2025-12,Investment,pf,closing,2004290
+2026-01,Income,salary,cash,394000
+2026-01,Income,salary,bank1,337116
+2026-01,Income,salary,bank3,180893
+2026-01,Income,salary,pf,72041
+2026-01,Income,other,bank1,761
+2026-01,Closing,Account,cash,26000
+2026-01,Closing,Account,bank1,110000
+2026-01,Closing,Account,bank2,14161
+2026-01,Closing,Account,bank3,266196
+2026-01,Outflow,InvestmentAndPF,Total,286041
+2026-01,Investment,mutualFund,invested,50000
+2026-01,Investment,mutualFund,closing,1642829
+2026-01,Investment,stock,invested,164000
+2026-01,Investment,stock,closing,973252
+2026-01,Investment,commodities,closing,548000
+2026-01,Investment,pf,invested,72041
+2026-01,Investment,pf,closing,2163437`;
+
+        // --- STORAGE SERVICE ---
+        const STORAGE_KEY = 'finvancial_data';
+        const storageService = {
+            saveData: (state) => localStorage.setItem(STORAGE_KEY, JSON.stringify(state)),
+            loadData: () => {
+                const saved = localStorage.getItem(STORAGE_KEY);
+                return saved ? JSON.parse(saved) : { monthlyData: {}, globalOpening: INITIAL_GLOBAL_OPENING };
+            },
+            parseCSV: (csv) => {
+                const lines = csv.split('\n').slice(1);
+                const newMonthly = {};
+                const newGlobal = { ...INITIAL_GLOBAL_OPENING };
+                lines.forEach(line => {
+                    if (!line.trim()) return;
+                    const [m, type, cat, field, val] = line.split(',');
+                    const numVal = Number(val) || 0;
+                    if (m === 'GLOBAL') { newGlobal[field] = numVal; return; }
+                    if (!newMonthly[m]) newMonthly[m] = createEmptyMonth();
+                    const month = newMonthly[m];
+                    if (type === 'Income') month.income[cat.toLowerCase()][field.toLowerCase()] = numVal;
+                    if (type === 'Closing') month.closing[field.toLowerCase()] = numVal;
+                    if (type === 'Investment') month.investments[cat][field.toLowerCase()] = numVal;
+                    if (type === 'Outflow') month.investmentOutflow = numVal;
+                });
+                return { monthlyData: newMonthly, globalOpening: newGlobal };
+            }
+        };
+
+        // --- MAIN APP COMPONENT ---
+        const App = () => {
+            const [data, setData] = useState({ monthlyData: {}, globalOpening: INITIAL_GLOBAL_OPENING });
+            const [loading, setLoading] = useState(true);
+            const [activeTab, setActiveTab] = useState('Income');
+            const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
+            const [filterFrom, setFilterFrom] = useState('');
+            const [filterTo, setFilterTo] = useState('');
+            const [showSaveMessage, setShowSaveMessage] = useState(false);
+            const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+            const fileInputRef = useRef(null);
+
+            useEffect(() => {
+                const loaded = storageService.loadData();
+                if (Object.keys(loaded.monthlyData).length === 0) {
+                    const seeded = storageService.parseCSV(SEED_DATA_CSV);
+                    setData(seeded);
+                    storageService.saveData(seeded);
+                } else {
+                    setData(loaded);
+                }
+                setLoading(false);
+            }, []);
+
+            const saveToStorage = (newState) => {
+                const finalState = newState || data;
+                storageService.saveData(finalState);
+                setShowSaveMessage(true);
+                setTimeout(() => setShowSaveMessage(false), 3000);
+            };
+
+            const getPrevMonthStr = (current) => {
+                const [y, m] = current.split('-').map(Number);
+                const date = new Date(y, m - 2, 1);
+                return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+            };
+
+            const getOpeningBalances = (month) => {
+                const prevMonth = getPrevMonthStr(month);
+                if (data.monthlyData[prevMonth]) {
+                    return {
+                        accounts: data.monthlyData[prevMonth].closing,
+                        assets: {
+                            mutualFund: data.monthlyData[prevMonth].investments.mutualFund.closing,
+                            stock: data.monthlyData[prevMonth].investments.stock.closing,
+                            commodities: data.monthlyData[prevMonth].investments.commodities.closing,
+                            pf: data.monthlyData[prevMonth].investments.pf.closing,
+                        }
+                    };
+                }
+                return {
+                    accounts: { cash: data.globalOpening.cash, bank1: data.globalOpening.bank1, bank2: data.globalOpening.bank2, bank3: data.globalOpening.bank3, pf: data.globalOpening.pf },
+                    assets: { mutualFund: data.globalOpening.mutualFund, stock: data.globalOpening.stock, commodities: data.globalOpening.commodities, pf: data.globalOpening.assetPf }
+                };
+            };
+
+            const currentMonthData = data.monthlyData[selectedMonth] || createEmptyMonth();
+
+            const calc = useMemo(() => {
+                const { accounts: openingAccs, assets: openingAssets } = getOpeningBalances(selectedMonth);
+                const totalOpeningAcc = ACCOUNTS.reduce((sum, acc) => sum + (Number(openingAccs[acc]) || 0), 0);
+                const totalIncome = INCOME_CATS.reduce((acc, cat) => acc + ACCOUNTS.reduce((sum, account) => sum + (Number(currentMonthData.income[cat][account]) || 0), 0), 0);
+                const totalClosingAcc = ACCOUNTS.reduce((sum, account) => sum + (Number(currentMonthData.closing[account]) || 0), 0);
+                const investOutflow = Number(currentMonthData.investmentOutflow) || 0;
+                const expense = (totalOpeningAcc + totalIncome) - investOutflow - totalClosingAcc;
+                const totalOpeningAsset = ASSETS.reduce((sum, asset) => sum + (Number(openingAssets[asset]) || 0), 0);
+                const totalMonthlyInvested = ASSETS.reduce((sum, asset) => sum + (Number(currentMonthData.investments[asset].invested) || 0), 0);
+                const totalClosingAsset = ASSETS.reduce((sum, asset) => sum + (Number(currentMonthData.investments[asset].closing) || 0), 0);
+                const pnl = totalClosingAsset - (totalOpeningAsset + totalMonthlyInvested);
+                return { totalOpeningAcc, totalIncome, totalClosingAcc, investOutflow, expense: expense > 0 ? expense : 0, totalOpeningAsset, totalMonthlyInvested, totalClosingAsset, pnl };
+            }, [selectedMonth, data, currentMonthData]);
+
+            const handleUpdate = (type, cat, field, val) => {
+                const numVal = Number(val);
+                setData(prev => {
+                    const newMonthly = { ...prev.monthlyData };
+                    const monthObj = JSON.parse(JSON.stringify(newMonthly[selectedMonth] || createEmptyMonth()));
+                    if (type === 'income') monthObj.income[cat][field] = numVal;
+                    if (type === 'closing') monthObj.closing[field] = numVal;
+                    if (type === 'invest') monthObj.investments[cat][field] = numVal;
+                    if (type === 'outflow') monthObj.investmentOutflow = numVal;
+                    return { ...prev, monthlyData: { ...newMonthly, [selectedMonth]: monthObj } };
+                });
+            };
+
+            const exportCSV = () => {
+                let csv = "Month,Type,Category,Field,Value\n";
+                Object.entries(data.globalOpening).forEach(([k, v]) => csv += `GLOBAL,Opening,Global,${k},${v}\n`);
+                Object.entries(data.monthlyData).forEach(([m, mData]) => {
+                    INCOME_CATS.forEach(c => ACCOUNTS.forEach(a => csv += `${m},Income,${c},${a},${mData.income[c][a]}\n`));
+                    ACCOUNTS.forEach(a => csv += `${m},Closing,Account,${a},${mData.closing[a]}\n`);
+                    csv += `${m},Outflow,InvestmentAndPF,Total,${mData.investmentOutflow}\n`;
+                    ASSETS.forEach(s => {
+                        csv += `${m},Investment,${s},invested,${mData.investments[s].invested}\n`;
+                        csv += `${m},Investment,${s},closing,${mData.investments[s].closing}\n`;
+                    });
+                });
+                const blob = new Blob([csv], { type: 'text/csv' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `finvancial_backup_${new Date().toISOString().split('T')[0]}.csv`;
+                a.click();
+            };
+
+            const importCSV = (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const imported = storageService.parseCSV(event.target.result);
+                    setData(imported);
+                    storageService.saveData(imported);
+                };
+                reader.readAsText(file);
+            };
+
+            const renderDashboard = () => {
+                let months = Object.keys(data.monthlyData).sort();
+                if (filterFrom) months = months.filter(m => m >= filterFrom);
+                if (filterTo) months = months.filter(m => m <= filterTo);
+                if (!filterFrom && !filterTo) months = months.slice(-6);
+
+                const summaryData = months.map(m => {
+                    const d = data.monthlyData[m];
+                    const inc = INCOME_CATS.reduce((acc, cat) => acc + ACCOUNTS.reduce((sum, account) => sum + (Number(d.income[cat][account]) || 0), 0), 0);
+                    const invOutflow = Number(d.investmentOutflow) || 0;
+                    const { accounts: opAccs, assets: opAssets } = getOpeningBalances(m);
+                    const totalOpAcc = ACCOUNTS.reduce((sum, acc) => sum + (Number(opAccs[acc]) || 0), 0);
+                    const totalClAcc = ACCOUNTS.reduce((sum, acc) => sum + (Number(d.closing[acc]) || 0), 0);
+                    const exp = (totalOpAcc + inc) - invOutflow - totalClAcc;
+                    const savings = inc - invOutflow - (exp > 0 ? exp : 0);
+                    const totalOpAsset = ASSETS.reduce((sum, asset) => sum + (Number(opAssets[asset]) || 0), 0);
+                    const totalClAsset = ASSETS.reduce((sum, asset) => sum + (Number(d.investments[asset].closing) || 0), 0);
+                    const totalMonthlyInv = ASSETS.reduce((sum, asset) => sum + (Number(d.investments[asset].invested) || 0), 0);
+                    const pnl = totalClAsset - (totalOpAsset + totalMonthlyInv);
+                    const totalEarning = invOutflow + savings + pnl;
+                    const growthPct = totalOpAsset > 0 ? (pnl / totalOpAsset) * 100 : 0;
+                    return { m, inc, exp, invOutflow, savings, pnl, totalEarning, growthPct, totalClAcc, totalClAsset, totalAssetValue: totalClAcc + totalClAsset };
+                });
+
+                const rangeAvg = summaryData.length > 0 ? {
+                    liquidAssets: summaryData.reduce((s, x) => s + x.totalClAcc, 0) / summaryData.length,
+                    investAssets: summaryData.reduce((s, x) => s + x.totalClAsset, 0) / summaryData.length,
+                    totalNetAsset: summaryData.reduce((s, x) => s + x.totalAssetValue, 0) / summaryData.length,
+                    growthPct: summaryData.reduce((s, x) => s + x.growthPct, 0) / summaryData.length,
+                    pnl: summaryData.reduce((s, x) => s + x.pnl, 0) / summaryData.length,
+                    totalPnl: summaryData.reduce((s, x) => s + x.pnl, 0),
+                    cumulativeReturn: summaryData.reduce((s, x) => s + x.growthPct, 0)
+                } : null;
+
+                const grandTotals = {
+                    inc: summaryData.reduce((s, x) => s + x.inc, 0),
+                    exp: summaryData.reduce((s, x) => s + x.exp, 0),
+                    inv: summaryData.reduce((s, x) => s + x.invOutflow, 0),
+                    savings: summaryData.reduce((s, x) => s + x.savings, 0),
+                    pnl: summaryData.reduce((s, x) => s + x.pnl, 0),
+                    earning: summaryData.reduce((s, x) => s + x.totalEarning, 0)
+                };
+
+                return (
+                    <div className="space-y-8 animate-in fade-in duration-500">
+                        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap items-center gap-6">
+                            <div className="flex items-center gap-2 text-slate-600 font-black text-xs uppercase tracking-wider"><Filter size={16} className="text-blue-500" /> Timeline:</div>
+                            <div className="flex items-center gap-3">
+                                <span className="text-[10px] font-black text-slate-400 uppercase">From</span>
+                                <input type="month" className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm font-bold text-slate-700 outline-none" value={filterFrom} onChange={(e) => setFilterFrom(e.target.value)} />
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <span className="text-[10px] font-black text-slate-400 uppercase">To</span>
+                                <input type="month" className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm font-bold text-slate-700 outline-none" value={filterTo} onChange={(e) => setFilterTo(e.target.value)} />
+                            </div>
+                        </div>
+
+                        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                            <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2"><BarChart3 className="text-blue-500" size={20} /> Month-wise Summary</h3>
+                            <div className="space-y-4">
+                                {summaryData.map(({ m, inc, exp, invOutflow, savings, pnl, totalEarning }) => (
+                                    <div key={m} className="p-6 bg-slate-50/50 rounded-2xl border border-slate-100 hover:border-blue-200 transition-all group">
+                                        <div className="flex flex-wrap justify-between items-center gap-6">
+                                            <div className="min-w-[100px]"><span className="text-[10px] font-black text-slate-400 uppercase block mb-1">Timeline</span><span className="text-lg font-black text-slate-800 group-hover:text-blue-600 transition-colors">{m}</span></div>
+                                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-6 flex-1">
+                                                <div><span className="text-[9px] font-black text-green-500 uppercase block mb-1">Income</span><span className="text-base font-bold text-slate-700">Rs. {inc.toLocaleString()}</span></div>
+                                                <div><span className="text-[9px] font-black text-orange-500 uppercase block mb-1">Expenses</span><span className="text-base font-bold text-slate-700">Rs. {exp.toLocaleString()}</span></div>
+                                                <div><span className="text-[9px] font-black text-indigo-500 uppercase block mb-1">Investment</span><span className="text-base font-bold text-slate-700">Rs. {invOutflow.toLocaleString()}</span></div>
+                                                <div className="p-2 bg-emerald-50/50 rounded-lg border border-emerald-100"><span className="text-[9px] font-black text-emerald-600 uppercase block mb-1 flex items-center gap-1"><PiggyBank size={10} /> Saving</span><span className={`text-base font-black ${savings >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>Rs. {Math.round(savings).toLocaleString()}</span></div>
+                                                <div className="p-2 bg-indigo-50/50 rounded-lg border border-indigo-100"><span className="text-[9px] font-black text-indigo-600 uppercase block mb-1 flex items-center gap-1"><TrendingUp size={10} /> Market P/L</span><span className={`text-base font-black ${pnl >= 0 ? 'text-indigo-700' : 'text-red-600'}`}>Rs. {Math.round(pnl).toLocaleString()}</span></div>
+                                                <div className="p-2 bg-slate-900 rounded-lg shadow-sm border border-slate-700"><span className="text-[9px] font-black text-slate-400 uppercase block mb-1 flex items-center gap-1"><Coins size={10} className="text-yellow-500" /> Earning</span><span className="text-base font-black text-white">Rs. {Math.round(totalEarning).toLocaleString()}</span></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {rangeAvg && (
+                                <div className="mt-8 p-6 bg-white border border-slate-200 rounded-2xl shadow-sm relative overflow-hidden group">
+                                    <div className="flex items-center gap-3 mb-8">
+                                        <span className="px-3 py-1 bg-slate-800 text-white text-[10px] font-black uppercase rounded-full tracking-wider shadow-sm">Period Grand Total Values</span>
+                                        <span className="text-slate-400 text-xs font-bold italic">Cumulative for {months.length} month(s)</span>
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-8 relative z-10">
+                                        <div><span className="text-[10px] font-black text-green-600 uppercase block mb-1">Total Income</span><span className="text-xl font-black text-slate-800">Rs. {grandTotals.inc.toLocaleString()}</span></div>
+                                        <div><span className="text-[10px] font-black text-orange-600 uppercase block mb-1">Total Expense</span><span className="text-xl font-black text-slate-800">Rs. {grandTotals.exp.toLocaleString()}</span></div>
+                                        <div><span className="text-[10px] font-black text-indigo-600 uppercase block mb-1">Total Invest</span><span className="text-xl font-black text-slate-800">Rs. {grandTotals.inv.toLocaleString()}</span></div>
+                                        <div><span className="text-[10px] font-black text-emerald-600 uppercase block mb-1">Total Saving</span><span className={`text-xl font-black ${grandTotals.savings >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>Rs. {grandTotals.savings.toLocaleString()}</span></div>
+                                        <div><span className="text-[10px] font-black text-indigo-600 uppercase block mb-1">Total P/L</span><span className={`text-xl font-black ${grandTotals.pnl >= 0 ? 'text-indigo-700' : 'text-red-600'}`}>Rs. {grandTotals.pnl.toLocaleString()}</span></div>
+                                        <div><span className="text-[10px] font-black text-blue-700 uppercase block mb-1">Grand Total Earning</span><span className="text-3xl font-black text-slate-900 tabular-nums border-b-4 border-blue-500 pb-1">Rs. {grandTotals.earning.toLocaleString()}</span></div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                            <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2"><PieChart className="text-emerald-500" size={20} /> Asset Allocation</h3>
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr className="border-b border-slate-100">
+                                            <th className="py-4 px-4 text-[10px] font-black text-slate-400 uppercase">Month</th>
+                                            <th className="py-4 px-4 text-[10px] font-black text-slate-400 uppercase">Liquid Assets</th>
+                                            <th className="py-4 px-4 text-[10px] font-black text-slate-400 uppercase text-center">Weight %</th>
+                                            <th className="py-4 px-4 text-[10px] font-black text-slate-400 uppercase">Investment Assets</th>
+                                            <th className="py-4 px-4 text-[10px] font-black text-slate-400 uppercase text-center">Weight %</th>
+                                            <th className="py-4 px-4 text-[10px] font-black text-slate-400 uppercase text-right">Total Net Asset</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-50">
+                                        {summaryData.map(({ m, totalClAcc, totalClAsset, totalAssetValue }) => {
+                                            const cashWeight = totalAssetValue > 0 ? (totalClAcc / totalAssetValue) * 100 : 0;
+                                            const investWeight = totalAssetValue > 0 ? (totalClAsset / totalAssetValue) * 100 : 0;
+                                            return (
+                                                <tr key={m} className="hover:bg-slate-50 transition-colors">
+                                                    <td className="py-4 px-4 font-black text-slate-800 text-sm">{m}</td>
+                                                    <td className="py-4 px-4 text-sm font-bold text-slate-600">Rs. {totalClAcc.toLocaleString()}</td>
+                                                    <td className="py-4 px-4 text-center"><span className="text-[10px] font-black bg-blue-50 text-blue-600 px-2 py-1 rounded-md">{cashWeight.toFixed(1)}%</span></td>
+                                                    <td className="py-4 px-4 text-sm font-bold text-slate-600">Rs. {totalClAsset.toLocaleString()}</td>
+                                                    <td className="py-4 px-4 text-center"><span className="text-[10px] font-black bg-indigo-50 text-indigo-600 px-2 py-1 rounded-md">{investWeight.toFixed(1)}%</span></td>
+                                                    <td className="py-4 px-4 text-right font-black text-slate-900">Rs. {totalAssetValue.toLocaleString()}</td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                    {rangeAvg && (
+                                        <tfoot>
+                                            <tr className="bg-slate-900 text-white font-black overflow-hidden border-t-4 border-slate-800">
+                                                <td className="py-5 px-4 text-[11px] uppercase tracking-widest rounded-bl-xl">Range Avg</td>
+                                                <td className="py-5 px-4 text-sm">Rs. {Math.round(rangeAvg.liquidAssets).toLocaleString()}</td>
+                                                <td className="py-5 px-4 text-center text-blue-400 text-[11px]">{((rangeAvg.liquidAssets / rangeAvg.totalNetAsset) * 100).toFixed(1)}%</td>
+                                                <td className="py-5 px-4 text-sm">Rs. {Math.round(rangeAvg.investAssets).toLocaleString()}</td>
+                                                <td className="py-5 px-4 text-center text-indigo-400 text-[11px]">{((rangeAvg.investAssets / rangeAvg.totalNetAsset) * 100).toFixed(1)}%</td>
+                                                <td className="py-5 px-4 text-right text-emerald-400 text-base rounded-br-xl">Rs. {Math.round(rangeAvg.totalNetAsset).toLocaleString()}</td>
+                                            </tr>
+                                        </tfoot>
+                                    )}
+                                </table>
+                            </div>
+                        </div>
+
+                        {rangeAvg && (
+                            <div className="mt-10 space-y-4">
+                                <div className="p-6 bg-slate-50 border border-slate-200 rounded-2xl shadow-sm flex justify-between items-center transition-all hover:bg-white hover:border-blue-200">
+                                    <div className="flex items-center gap-4">
+                                        <div className="p-3 bg-blue-600 text-white rounded-xl shadow-lg shadow-blue-100"><TrendingUp size={20} /></div>
+                                        <div><h4 className="text-[11px] font-black text-blue-600 uppercase tracking-widest">Overall Average Growth</h4><p className="text-xs font-bold text-slate-400">Selected Period</p></div>
+                                    </div>
+                                    <div className="text-right"><div className="text-2xl font-black text-emerald-500">+{rangeAvg.growthPct.toFixed(2)}%</div><div className="text-[10px] font-black text-slate-400 uppercase">Avg Rs. {Math.round(rangeAvg.pnl).toLocaleString()}/MO</div></div>
+                                </div>
+                                <div className="p-6 bg-slate-900 text-white rounded-2xl shadow-xl flex justify-between items-center relative overflow-hidden group">
+                                    <div className="flex items-center gap-4 relative z-10">
+                                        <div className="p-3 bg-emerald-500 text-white rounded-xl shadow-lg shadow-emerald-500/20"><BarChart3 size={20} /></div>
+                                        <div><h4 className="text-[11px] font-black text-emerald-400 uppercase tracking-widest">Overall Total Growth</h4><p className="text-xs font-bold text-slate-400">Total Cumulative Return %</p></div>
+                                    </div>
+                                    <div className="text-right relative z-10"><div className="text-3xl font-black text-white">{rangeAvg.cumulativeReturn.toFixed(2)}%</div><div className="text-[10px] font-black text-slate-400 uppercase">Net Value: Rs. {Math.round(rangeAvg.totalPnl).toLocaleString()}</div></div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                );
+            };
+
+            if (loading) return <div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="animate-pulse text-blue-600 font-bold text-xl">Loading Finvancial...</div></div>;
+
+            return (
+                <div className="min-h-screen bg-slate-50 text-slate-900 pb-20 selection:bg-blue-100">
+                    {showSaveMessage && <div className="fixed top-20 right-8 bg-slate-900 text-white px-6 py-3 rounded-xl shadow-2xl z-50 flex items-center gap-3 animate-in slide-in-from-right"><CheckCircle2 className="text-green-500" size={20} /><span className="text-sm font-bold">Data Saved to Device</span></div>}
+                    {showDeleteConfirm && <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4"><div className="bg-white p-6 rounded-2xl max-w-sm w-full shadow-2xl"><h3 className="text-xl font-bold text-slate-800 mb-2 font-black">Wipe All Data?</h3><p className="text-slate-500 text-sm mb-6">Permanently delete your local records?</p><div className="flex gap-3"><button onClick={() => setShowDeleteConfirm(false)} className="flex-1 px-4 py-2 bg-slate-100 rounded-lg font-bold">Cancel</button><button onClick={() => { setData({ monthlyData: {}, globalOpening: INITIAL_GLOBAL_OPENING }); storageService.saveData({ monthlyData: {}, globalOpening: INITIAL_GLOBAL_OPENING }); setShowDeleteConfirm(false); }} className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg font-bold">Delete</button></div></div></div>}
+
+                    <header className="bg-white border-b border-slate-200 sticky top-0 z-40 px-4 md:px-8">
+                        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center py-4 gap-4">
+                            <div className="flex items-center gap-3"><div className="bg-blue-600 p-2 rounded-xl text-white shadow-lg"><TrendingUp size={24} /></div><h1 className="text-2xl font-black tracking-tighter text-slate-800">Finvancial</h1></div>
+                            <div className="flex flex-wrap items-center gap-3">
+                                <div className="flex items-center gap-2 bg-slate-50 p-1.5 rounded-xl border border-slate-200"><Calendar size={18} className="text-slate-400 ml-1" /><input type="month" className="bg-transparent border-none text-sm font-black text-slate-700 outline-none" value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} /></div>
+                                <button onClick={exportCSV} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 rounded-xl text-slate-600 text-[10px] font-black uppercase"><Download size={16} /> Export</button>
+                                <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 rounded-xl text-slate-600 text-[10px] font-black uppercase"><Upload size={16} /> Import</button>
+                                <button onClick={() => setShowDeleteConfirm(true)} className="flex items-center gap-2 px-4 py-2 bg-red-50 border border-red-100 text-red-600 text-[10px] font-black uppercase"><Trash2 size={16} /> Wipe</button>
+                                <input type="file" ref={fileInputRef} className="hidden" accept=".csv" onChange={importCSV} />
+                            </div>
+                        </div>
+                    </header>
+
+                    <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+                            {[
+                                { label: 'Opening Balance', value: calc.totalOpeningAcc, color: 'slate' },
+                                { label: 'Income', value: calc.totalIncome, color: 'green' },
+                                { label: 'Invest/PF Out', value: calc.investOutflow, color: 'indigo' },
+                                { label: 'Closing Balance', value: calc.totalClosingAcc, color: 'blue' },
+                                { label: 'Expenses', value: calc.expense, color: 'orange', invert: true }
+                            ].map((card, idx) => (
+                                <div key={idx} className={`${card.invert ? `bg-${card.color}-600 text-white` : `bg-white border-l-4 border-l-${card.color}-500`} p-6 rounded-3xl border border-slate-200 shadow-sm transition-all hover:scale-[1.02]`}>
+                                    <span className={`text-[10px] font-black uppercase tracking-widest block mb-2 ${card.invert ? 'text-white/60' : `text-${card.color}-500`}`}>{card.label}</span>
+                                    <div className="text-2xl font-black tabular-nums">Rs. {card.value.toLocaleString()}</div>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="flex gap-1 bg-slate-200/50 p-1 rounded-2xl w-fit mb-8 overflow-x-auto max-w-full no-scrollbar sticky top-24 z-30 backdrop-blur-md">
+                            {['Income', 'Investment', 'Dashboard', 'Global Setup'].map((tab) => (
+                                <button key={tab} onClick={() => setActiveTab(tab)} className={`px-8 py-3 rounded-xl text-sm font-black transition-all whitespace-nowrap ${activeTab === tab ? 'bg-white text-blue-600 shadow-md' : 'text-slate-500 hover:text-slate-800'}`}>{tab}</button>
+                            ))}
+                        </div>
+
+                        <div className="min-h-[500px]">
+                            {activeTab === 'Dashboard' && renderDashboard()}
+                            {activeTab === 'Income' && (
+                                <div className="space-y-8 animate-in fade-in duration-500">
+                                    <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm">
+                                        <div className="flex justify-between items-center mb-8"><h3 className="text-xl font-black text-slate-800 flex items-center gap-2"><div className="p-2 bg-green-50 text-green-600 rounded-lg"><Banknote size={20} /></div>Income Entries</h3><button onClick={() => saveToStorage()} className="bg-green-600 text-white px-6 py-2.5 rounded-xl text-sm font-black flex items-center gap-2 shadow-lg hover:bg-green-700 active:scale-95"><Save size={18} /> Save Progress</button></div>
+                                        <div className="grid grid-cols-1 gap-8">
+                                            {INCOME_CATS.map(cat => (
+                                                <div key={cat} className="p-6 bg-slate-50/50 rounded-2xl border border-slate-100">
+                                                    <div className="flex items-center gap-2 mb-6"><span className="text-xs font-black text-slate-400 uppercase tracking-widest">{cat}</span><div className="h-px bg-slate-200 flex-1"></div></div>
+                                                    <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
+                                                        {ACCOUNTS.map(acc => (
+                                                            <div key={acc} className="space-y-2"><label className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">{acc}</label><input type="number" className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-black text-slate-700 outline-none" value={currentMonthData.income[cat][acc] || ''} onChange={(e) => handleUpdate('income', cat, acc, e.target.value)} placeholder="0" /></div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm"><h3 className="text-xl font-black text-slate-800 mb-8 flex items-center gap-2"><div className="p-2 bg-blue-50 text-blue-600 rounded-lg"><Wallet size={20} /></div>End-of-Month Balances</h3><div className="grid grid-cols-2 md:grid-cols-5 gap-6">{ACCOUNTS.map(acc => (<div key={acc} className="space-y-2"><label className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">{acc}</label><input type="number" className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-black text-slate-700 outline-none" value={currentMonthData.closing[acc] || ''} onChange={(e) => handleUpdate('closing', null, acc, e.target.value)} placeholder="0" /></div>))}</div></div>
+                                </div>
+                            )}
+                            {activeTab === 'Investment' && (
+                                <div className="space-y-8 animate-in fade-in duration-500">
+                                    <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm"><div className="flex justify-between items-center mb-8"><h3 className="text-xl font-black text-slate-800 flex items-center gap-2"><div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg"><ArrowRightLeft size={20} /></div>Monthly Outflows</h3><button onClick={() => saveToStorage()} className="bg-indigo-600 text-white px-6 py-2.5 rounded-xl text-sm font-black flex items-center gap-2 shadow-lg hover:bg-indigo-700 active:scale-95"><Save size={18} /> Save Progress</button></div><div className="max-w-md space-y-2"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Investment & PF Contribution</label><input type="number" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-5 py-4 text-lg font-black text-indigo-700 outline-none" value={currentMonthData.investmentOutflow || ''} onChange={(e) => handleUpdate('outflow', null, null, e.target.value)} placeholder="0" /></div></div>
+                                    <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm"><h3 className="text-xl font-black text-slate-800 mb-8 flex items-center gap-2"><div className="p-2 bg-purple-50 text-purple-600 rounded-lg"><ExternalLink size={20} /></div>Market Valuation</h3><div className="grid grid-cols-1 gap-6">{ASSETS.map(asset => (<div key={asset} className="p-6 bg-slate-50/50 rounded-2xl border border-slate-100 flex flex-col md:flex-row gap-8 items-start md:items-center"><div className="min-w-[150px]"><h4 className="text-sm font-black text-slate-800 uppercase tracking-widest">{asset}</h4></div><div className="grid grid-cols-2 gap-8 flex-1 w-full"><div className="space-y-2"><label className="text-[10px] font-black text-slate-400 uppercase">Added Funds</label><input type="number" className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-black text-slate-700 outline-none" value={currentMonthData.investments[asset].invested || ''} onChange={(e) => handleUpdate('invest', asset, 'invested', e.target.value)} placeholder="0" /></div><div className="space-y-2"><label className="text-[10px] font-black text-indigo-500 uppercase">Total Market Value</label><input type="number" className="w-full bg-white border border-indigo-200 rounded-xl px-4 py-3 text-sm font-black text-indigo-700 outline-none shadow-sm" value={currentMonthData.investments[asset].closing || ''} onChange={(e) => handleUpdate('invest', asset, 'closing', e.target.value)} placeholder="0" /></div></div></div>))}</div></div>
+                                </div>
+                            )}
+                            {activeTab === 'Global Setup' && (
+                                <div className="space-y-8 animate-in fade-in duration-500 max-w-4xl"><div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm"><div className="flex justify-between items-center mb-8"><h3 className="text-xl font-black text-slate-800 flex items-center gap-2"><div className="p-2 bg-slate-100 text-slate-600 rounded-lg"><Calculator size={20} /></div>Base Opening Setup</h3><button onClick={() => saveToStorage()} className="bg-slate-900 text-white px-6 py-2.5 rounded-xl text-sm font-black flex items-center gap-2 hover:bg-black active:scale-95"><Save size={18} /> Set Base</button></div><div className="grid grid-cols-2 md:grid-cols-3 gap-8">{Object.keys(data.globalOpening).map(key => (<div key={key} className="space-y-2"><label className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">{key}</label><input type="number" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-black text-slate-700 outline-none" value={data.globalOpening[key]} onChange={(e) => setData(prev => ({ ...prev, globalOpening: { ...prev.globalOpening, [key]: Number(e.target.value) } }))} /></div>))}</div></div></div>
+                            )}
+                        </div>
+                    </main>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
 </html>
